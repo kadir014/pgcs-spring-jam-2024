@@ -1,0 +1,10 @@
+{
+    "fonts": {
+        "FiraCode-Bold": "fonts/FiraCode-Bold.ttf",
+        "FiraCode-Regular": "fonts/FiraCode-Regular.ttf"
+    },
+
+    "images": {
+        "debug": "images/debug.jpeg"
+    }
+}
