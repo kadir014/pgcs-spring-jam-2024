@@ -1,10 +1,21 @@
 {
     "fonts": {
         "FiraCode-Bold": "fonts/FiraCode-Bold.ttf",
-        "FiraCode-Regular": "fonts/FiraCode-Regular.ttf"
+        "FiraCode-Regular": "fonts/FiraCode-Regular.ttf",
+        "LoveYaLikeASister": "fonts/LoveYaLikeASister.ttf"
     },
 
     "images": {
-        "debug": "images/debug.jpeg"
+        "background": "images/background.png",
+        "textbox0": "images/textbox0.png",
+        "textbox1": "images/textbox1.png"
+    },
+
+    "animations": {
+        "cursor": [
+            "images/cursor0.png",
+            "images/cursor1.png",
+            "images/cursor2.png"
+        ]
     }
 }

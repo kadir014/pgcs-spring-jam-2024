@@ -21,15 +21,13 @@ class Entity:
         self.engine = scene.engine
         self.scene.add_entity(self)
 
-        self.killed = False
         self.position = pygame.Vector2(position)
         self.sprite = sprite
-        self.z_index = 0
+        self.z_index = 1
 
     def kill(self):
         """ Remove the entity from the scene. """
         self.scene.entities.remove(self)
-        self.killed = True
 
     def update(self):
         """ Entity update callback. """

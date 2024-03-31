@@ -4,6 +4,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+ninepatch.py
+issue.py
 
 # C extensions
 *.so

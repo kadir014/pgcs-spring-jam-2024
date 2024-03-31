@@ -16,6 +16,7 @@ from .scene import Scene
 from .hwinfo import get_cpu_info, is_web
 from .asset_manager import AssetManager
 from .draw import draw_debug_ui
+from .gl import BasicScreenQuad
 
 
 def _cfg_to_bool(value: str) -> bool:
@@ -56,6 +57,7 @@ class Engine:
         self.window_width = resolution[0]
         self.window_height = resolution[1]
         self.__window_title = ""
+        self.window_title = self.config["Engine"]["title"]
 
         if "forced_width" in self.config["Engine"]: self.window_width = int(self.config["Engine"]["forced_width"])
         if "forced_height" in self.config["Engine"]:self.window_height = int(self.config["Engine"]["forced_height"])
@@ -67,17 +69,22 @@ class Engine:
 
         self.display_tex = self.context.texture(self.display.get_size(), 4)
 
-        self.screenquad_shader = self.context.program(
+        self.final_fbo = self.context.framebuffer(
+            color_attachments=self.context.texture((self.window_width, self.window_height), 4)
+        )
+
+        self.screenquad = BasicScreenQuad(
+            self,
             vertex_shader="""
 
 #version 330
 
-in vec2 in_vert;
+in vec2 in_position;
 in vec2 in_uv;
 out vec2 v_uv;
 
 void main() {
-    gl_Position = vec4(in_vert, 0.0, 1.0);
+    gl_Position = vec4(in_position, 0.0, 1.0);
     v_uv = in_uv;
 }
 
@@ -101,35 +108,46 @@ void main() {
             """
         )
 
-        self.screenquad_vbo = self.context.buffer(
-            array.array("f", [
-                1.0,  1.0,
-                1.0, -1.0,
-                -1.0, -1.0,
-                -1.0,  1.0,
-            ])
-        )
+        self.post = BasicScreenQuad(
+            self,
+            vertex_shader="""
 
-        self.screenquad_ibo = self.context.buffer(
-            array.array("i", [
-                0, 1, 3,
-                1, 2, 3
-            ])
-        )
+#version 330
 
-        self.screenquad_uvbo = self.context.buffer(
-            array.array("f", [
-                1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0
-            ])
-        )
+in vec2 in_position;
+in vec2 in_uv;
+out vec2 v_uv;
 
-        self.screenquad_vao = self.context.vertex_array(
-            self.screenquad_shader,
-            (
-                self.screenquad_vbo.bind("in_vert", layout="2f"),
-                self.screenquad_uvbo.bind("in_uv", layout="2f")
-            ),
-            index_buffer=self.screenquad_ibo
+void main() {
+    gl_Position = vec4(in_position, 0.0, 1.0);
+    v_uv = in_uv;
+}
+
+            """,
+            fragment_shader="""
+
+#version 330
+
+in vec2 v_uv;
+out vec4 f_color;
+
+uniform sampler2D s_texture;
+
+// Vignette: https://www.shadertoy.com/view/lsKSWR
+
+void main() {
+    vec2 uv = v_uv;
+
+    vec2 uv2 = uv * (1.0 - uv.yx);
+    float vig = uv2.x * uv2.y * 45.0;
+    vig = pow(vig, 0.07); 
+
+    vec3 color = texture(s_texture, uv).rgb;
+
+    f_color = vec4(color * vig, 1.0);
+}
+
+            """
         )
 
         self.scenes = {}
@@ -163,9 +181,6 @@ void main() {
         pygame.display.set_caption(self.__window_title)
 
     def create_window(self):
-        #self.display = pygame.display.set_mode(
-        #    (self.window_width, self.window_height)
-        #)
         pygame.display.set_mode(
            (self.window_width, self.window_height),
            pygame.OPENGL | pygame.DOUBLEBUF
@@ -292,13 +307,13 @@ void main() {
                     self.scene.update()
 
                 with self.profile("render"):
+                    self.final_fbo.use()
                     self.context.clear(255, 255, 255)
                     self.display.fill((14, 12, 28))
 
                     self.scene.render_before()
 
-                    #entities = sorted(self.scene.entities, key = lambda e: e.z_index, reverse=True)
-                    entities = self.scene.entities
+                    entities = sorted(self.scene.entities, key=lambda e: e.z_index, reverse=False)
 
                     for entity in entities:
                         entity.render_before()
@@ -319,9 +334,13 @@ void main() {
 
                     self.display_tex.write(self.display.get_view("1"))
                     self.display_tex.use(0)
-                    self.screenquad_vao.render()
+                    self.screenquad.vao.render()
 
                     self.scene.render_post()
+
+                    self.context.screen.use()
+                    self.final_fbo.color_attachments[0].use(0)
+                    self.post.vao.render()
 
                     pygame.display.flip()
 

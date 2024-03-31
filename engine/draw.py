@@ -115,7 +115,7 @@ def draw_debug_ui(engine: "Engine", minimal: bool = False) -> None:
         )
 
     else:
-        bg = pygame.Surface((305, 184), pygame.SRCALPHA).convert_alpha()
+        bg = pygame.Surface((305, 190), pygame.SRCALPHA).convert_alpha()
         bg.fill((0, 0, 0, 130))
 
         # Draw FPS stats
