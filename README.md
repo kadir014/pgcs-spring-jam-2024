@@ -1,6 +1,7 @@
 # pgcs-spring-jam-2024
 My entry for the Pygame Community Server Spring Jam 2024 with the theme "Temperature".
 
+
 # How to Play
 **Prerequisites**:
 - Python 3.10+
@@ -19,3 +20,7 @@ And just run `main.py`
 ```
 $ python main.py
 ```
+
+
+# License
+[MIT](LICENSE) © Kadir Aksoy
