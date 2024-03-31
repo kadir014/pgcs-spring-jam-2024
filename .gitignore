@@ -1,11 +1,10 @@
+dev/
 *.prof
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-ninepatch.py
-issue.py
 
 # C extensions
 *.so
