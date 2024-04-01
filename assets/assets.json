@@ -15,7 +15,8 @@
         "button_settings_close": "images/button_settings_close.png",
         "button_quit_open": "images/button_quit_open.png",
         "button_quit_close": "images/button_quit_close.png",
-        "menu_hand": "images/menu_hand.png"
+        "menu_hand": "images/menu_hand.png",
+        "settings": "images/settings.png"
     },
 
     "animations": {

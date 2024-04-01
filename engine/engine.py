@@ -65,6 +65,8 @@ class Engine:
         self.__window_title = ""
         self.window_title = self.config["Engine"]["title"]
 
+        self.hardware_scaling = self.config["Engine"]["hardware_scaling"]
+
         if "forced_width" in self.config["Engine"]: self.window_width = int(self.config["Engine"]["forced_width"])
         if "forced_height" in self.config["Engine"]:self.window_height = int(self.config["Engine"]["forced_height"])
         self.create_window()

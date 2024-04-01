@@ -82,5 +82,8 @@ class MenuButton(Button):
         if self.type == "start":
             self.engine.change_scene_transition("Game", 1.5)
 
+        elif self.type == "settings":
+            self.engine.change_scene("Settings")
+
         elif self.type == "quit":
             self.engine.stop()
