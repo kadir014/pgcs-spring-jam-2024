@@ -174,9 +174,6 @@ class Game(Scene):
         self.water_post = WaterPostProcess(self)
 
     def update(self):
-        if self.engine.input.key_pressed("escape"):
-            self.engine.stop()
-
         if self.engine.input.key_pressed("f2"):
             self.debug_drawing = not self.debug_drawing
 
@@ -238,31 +235,32 @@ class Game(Scene):
         if self.drawing:
             pygame.draw.line(self.engine.display, (255, 255, 255), self.drawing_start, self.engine.input.mouse)
 
-        font = self.engine.asset_manager.get_font("FiraCode-Bold", 12)
+        if self.engine.stat_drawing == 2:
+            font = self.engine.asset_manager.get_font("FiraCode-Bold", 12)
 
-        draw_shadow_text(
-            self.engine.display,
-            font,
-            f"Physics Debug",
-            (5, self.engine.window_height - 5 - 14 * 3),
-            (255, 255, 255)
-        )
+            draw_shadow_text(
+                self.engine.display,
+                font,
+                f"Physics Debug",
+                (5, self.engine.window_height - 5 - 14 * 3),
+                (255, 255, 255)
+            )
 
-        draw_shadow_text(
-            self.engine.display,
-            font,
-            f"Step: {round(self.step_time * 1000, 2)}ms",
-            (5, self.engine.window_height - 5 - 14 * 2),
-            (255, 255, 255)
-        )
+            draw_shadow_text(
+                self.engine.display,
+                font,
+                f"Step: {round(self.step_time * 1000, 2)}ms",
+                (5, self.engine.window_height - 5 - 14 * 2),
+                (255, 255, 255)
+            )
 
-        draw_shadow_text(
-            self.engine.display,
-            font,
-            f"Bodies: {len(self.space.bodies)}",
-            (5, self.engine.window_height - 5 - 14 * 1),
-            (255, 255, 255)
-        )
+            draw_shadow_text(
+                self.engine.display,
+                font,
+                f"Bodies: {len(self.space.bodies)}",
+                (5, self.engine.window_height - 5 - 14 * 1),
+                (255, 255, 255)
+            )
 
     def render_post(self):
         # Update particles buffer with new particle positions

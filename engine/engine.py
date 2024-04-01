@@ -392,6 +392,9 @@ void main() {
                 if self.input.key_pressed("f1"):
                     self.stat_drawing = (self.stat_drawing + 1) % 3
 
+                if self.input.key_held("lshift") and self.input.key_pressed("escape"):
+                    self.stop()
+
                 with self.profile("update"):
                     for entity in self.scene.entities:
                         entity.update()

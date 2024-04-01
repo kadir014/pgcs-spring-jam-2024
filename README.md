@@ -2,7 +2,7 @@
 My entry for the Pygame Community Server Spring Jam 2024 with the theme "Temperature".
 
 
-# How to Play
+# Installing
 **Prerequisites**:
 - Python 3.10+
 - Pygame-CE 2.4.0+
@@ -20,6 +20,16 @@ And just run `main.py`
 ```
 $ python main.py
 ```
+
+
+# How to Play
+<kbd>Mouse Wheel</kbd> to adjust room temperature.
+
+<kbd>Space</kbd> or <kbd>Enter</kbd> to skip dialog.
+
+<kbd>LShift</kbd> + <kbd>ESC</kbd> to quit the game.
+
+<kbd>F1</kbd> to toggle between debug UI menus.
 
 
 # License
