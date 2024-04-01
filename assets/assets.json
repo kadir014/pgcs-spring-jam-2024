@@ -8,14 +8,39 @@
     "images": {
         "background": "images/background.png",
         "textbox0": "images/textbox0.png",
-        "textbox1": "images/textbox1.png"
+        "textbox1": "images/textbox1.png",
+        "button_start_open": "images/button_start_open.png",
+        "button_start_close": "images/button_start_close.png",
+        "button_settings_open": "images/button_settings_open.png",
+        "button_settings_close": "images/button_settings_close.png",
+        "button_quit_open": "images/button_quit_open.png",
+        "button_quit_close": "images/button_quit_close.png",
+        "menu_hand": "images/menu_hand.png"
     },
 
     "animations": {
         "cursor": [
-            "images/cursor0.png",
-            "images/cursor1.png",
-            "images/cursor2.png"
+            "animations/cursor/cursor0.png",
+            "animations/cursor/cursor1.png",
+            "animations/cursor/cursor2.png"
+        ],
+        "gauge": [
+            "animations/gauge/gauge.png",
+            "animations/gauge/gauge0.png",
+            "animations/gauge/gauge1.png",
+            "animations/gauge/gauge2.png",
+            "animations/gauge/gauge3.png",
+            "animations/gauge/gauge4.png",
+            "animations/gauge/gauge5.png",
+            "animations/gauge/gauge6.png",
+            "animations/gauge/gauge7.png",
+            "animations/gauge/gauge8.png",
+            "animations/gauge/gauge9.png"
         ]
+    },
+
+    "sounds": {
+        "ui1": "sounds/ui1.wav",
+        "ui4": "sounds/ui4.wav"
     }
 }

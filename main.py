@@ -11,5 +11,6 @@ if __name__ == "__main__":
     engine = Engine(source_path("settings.cfg"))
 
     engine.add_scene(Game)
+    engine.add_scene(Menu)
 
     engine.run()

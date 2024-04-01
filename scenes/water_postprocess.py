@@ -37,13 +37,14 @@ void main() {
 """
 #version 330
 
+// Blur algorithm from: https://www.shadertoy.com/view/Xltfzj
+
 in vec2 v_uv;
 out vec4 out_color;
 
 uniform vec2 u_resolution;
 uniform sampler2D s_texture;
 
-// Blur algorithm from https://www.shadertoy.com/view/Xltfzj
 #define TAU 6.28318530718
 #define DIRS 24.0   // Blur directions
 #define QUALITY 3.0 // Blur quality
@@ -204,6 +205,8 @@ void main() {
 """
 #version 330
 
+// Water algorithm is taken and slightly edited from: https://www.shadertoy.com/view/4slGRM
+
 in vec2 v_uv;
 out vec4 out_color;
 
@@ -211,8 +214,6 @@ uniform float u_time;
 uniform vec2 u_resolution;
 uniform sampler2D s_texture0;
 uniform sampler2D s_texture1;
-
-// Water algorithm is taken and slightly edited from https://www.shadertoy.com/view/4slGRM
 
 #define PI 3.1415926535897932
 #define TAU 6.28318530718
@@ -325,6 +326,8 @@ void main() {
 """
 #version 330
 
+// Blur algorithm from: https://www.shadertoy.com/view/Xltfzj
+
 in vec2 v_uv;
 out vec4 out_color;
 
@@ -332,7 +335,6 @@ uniform vec2 u_resolution;
 uniform sampler2D s_texture0;
 uniform sampler2D s_texture1;
 
-// Blur algorithm from https://www.shadertoy.com/view/Xltfzj
 #define TAU 6.28318530718
 #define DIRS 24.0   // Blur directions
 #define QUALITY 8.0 // Blur quality

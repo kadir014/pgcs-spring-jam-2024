@@ -2,10 +2,9 @@ from typing import Union
 
 import os; os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "1"
 from contextlib import contextmanager
-from time import perf_counter
+from time import perf_counter, time
 from pathlib import Path
 import configparser
-import array
 
 import pygame
 import moderngl
@@ -24,12 +23,18 @@ def _cfg_to_bool(value: str) -> bool:
     return value.lower() in ("true", "t", "1", "on", "yes", "y", "enabled")
 
 
+EPSILON = 0.000001
+
+def near_enough(a: float, b: float) -> bool:
+    return (a > b - EPSILON) or (a < b + EPSILON) or a == b
+
+
 class Engine:
     """
     Top-level core engine class.
     """
 
-    def __init__(self, config_path: Path):
+    def __init__(self, config_path: Path) -> None:
         self.config = configparser.ConfigParser()
         self.config.read(config_path)
 
@@ -43,6 +48,7 @@ class Engine:
         self.dt = 1.0 / self.fps
         self.is_running = False
         self.frame = 0
+        self.start_time = time()
 
         self.master_volume = float(self.config["Engine"]["master_volume"])
 
@@ -125,26 +131,94 @@ void main() {
 
             """,
             fragment_shader="""
-
 #version 330
+
+// Vignette shader from: https://www.shadertoy.com/view/lsKSWR
+// 2D Simplex (slightly modified) from: https://www.shadertoy.com/view/ttcSR8
 
 in vec2 v_uv;
 out vec4 f_color;
 
+uniform float u_time;
+uniform float u_temp;
+uniform float u_fade;
 uniform sampler2D s_texture;
 
-// Vignette: https://www.shadertoy.com/view/lsKSWR
+vec3 permute(vec3 x) {
+    return mod(((x * 34.0) + 1.0) * x, 289.0);
+}
+
+float snoise(vec2 v) {
+    const vec4 C = vec4(
+        0.211324865405187, 0.366025403784439,
+        -0.577350269189626, 0.024390243902439
+    );
+
+    vec2 i = floor(v + dot(v, C.yy));
+    vec2 x0 = v - i + dot(i, C.xx);
+    vec2 i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    vec4 x12 = x0.xyxy + C.xxzz;
+    x12.xy -= i1;
+    i = mod(i, 289.0);
+    vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 ))
+    + i.x + vec3(0.0, i1.x, 1.0 ));
+    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+    m = m*m;
+    m = m*m;
+    vec3 x = 2.0 * fract(p * C.www) - 1.0;
+    vec3 h = abs(x) - 0.5;
+    vec3 ox = floor(x + 0.5);
+    vec3 a0 = x - ox;
+    m *= 1.79284291400159 - 0.85373472095314 * (a0*a0 + h*h);
+    vec3 g;
+    g.x  = a0.x  * x0.x  + h.x  * x0.y;
+    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+    return 130.0 * dot(m, g);
+}
+
+float snoise_octaves(vec2 uv, int octaves, float alpha, float beta, vec2 gamma, float delta) {
+    vec2 pos = uv;
+    float t = 1.0;
+    float s = 1.0;
+    vec2 q = gamma;
+    float r = 0.0;
+    for (int i = 0; i < octaves; i++) {
+        r += s * snoise(pos + q);
+        pos += t * uv;
+        t *= beta;
+        s *= alpha;
+        q *= delta;
+    }
+    return r;
+}
 
 void main() {
     vec2 uv = v_uv;
 
-    vec2 uv2 = uv * (1.0 - uv.yx);
-    float vig = uv2.x * uv2.y * 45.0;
+    vec2 uv_vig = uv * (1.0 - uv.yx);
+    float vig = uv_vig.x * uv_vig.y * 45.0;
     vig = pow(vig, 0.07); 
 
-    vec3 color = texture(s_texture, uv).rgb;
+    vec3 color;
 
-    f_color = vec4(color * vig, 1.0);
+    if (u_temp > 0.65) {
+        float temp = (u_temp - 0.65) * 2.0;
+        float noise_factor_x = 0.0033 * temp;
+        float noise_factor_y = 0.0023 * temp;
+
+        vec2 uv_noise = uv + vec2(
+            noise_factor_x * snoise_octaves(uv * 2.0 + u_time * vec2(0.00323, 0.00345), 9,0.85, -3.0, u_time * vec2(-0.0323, -0.345), 1.203),
+            noise_factor_y * snoise_octaves(uv * 2.0 + 3.0 + u_time * vec2(-0.00323, 0.00345), 9,0.85, -3.0, u_time * vec2(-0.0323, -0.345), 1.203)
+        );
+
+        color = texture(s_texture, uv_noise).rgb;
+        color = mix(color, vec3(1.0, 0.349, 0.109), u_temp - 0.65);
+    }
+    else {
+        color = texture(s_texture, uv).rgb;
+    }
+
+    f_color = vec4(color * vig, u_fade);
 }
 
             """
@@ -152,6 +226,12 @@ void main() {
 
         self.scenes = {}
         self.__current_scene = None
+
+        self.in_transition = False
+        self.transitioned = False
+        self.transition_start = time()
+        self.transition_scene = ""
+        self.transition_duration = 0
 
         self.asset_manager = AssetManager()
 
@@ -192,7 +272,7 @@ void main() {
     def aspect_ratio(self) -> float:
         return self.window_width / self.window_height
     
-    def set_icon(self, filepath: Union[Path, str]):
+    def set_icon(self, filepath: Union[Path, str]) -> None:
         """ Set window icon. """
         pygame.display.set_icon(pygame.image.load(filepath))
 
@@ -234,7 +314,7 @@ void main() {
         """ Get the current scene. """
         return self.scenes[self.__current_scene]
     
-    def add_scene(self, scene: Scene):
+    def add_scene(self, scene: Scene) -> None:
         """
         Add a scene to the engine.
         This function also sets the current scene as the last added one.
@@ -243,7 +323,19 @@ void main() {
         self.__current_scene = scene_.__class__.__name__
         self.scenes[self.__current_scene] = scene_
 
-    def handle_events(self):
+    def change_scene(self, scene_name: str) -> None:
+        """ Change the current scene. """
+        self.__current_scene = scene_name
+
+    def change_scene_transition(self, scene_name: str, duration: float) -> None:
+        """ Change the current scene with a transition. """
+        self.in_transition = True
+        self.transition_scene = scene_name
+        self.transition_duration = duration
+        self.transition_start = time()
+        self.transitioned = False
+
+    def handle_events(self) -> None:
         """ Handle Pygame events. """
 
         self.events = pygame.event.get()
@@ -266,7 +358,7 @@ void main() {
             elapsed = perf_counter() - start
             self._accumulate(stat, elapsed)
 
-    def _accumulate(self, stat: str, value: float):
+    def _accumulate(self, stat: str, value: float) -> None:
         """ Accumulate stat value. """
 
         acc = self.stats[stat]["acc"]
@@ -279,18 +371,18 @@ void main() {
             self.stats[stat]["min"] = min(acc)
             self.stats[stat]["max"] = max(acc)
 
-    def stop(self):
+    def stop(self) -> None:
         """ Stop the engine. """
         self.is_running = False
 
-    def run(self):
+    def run(self) -> None:
         """ Run the engine. """
         self.is_running = True
 
         while self.is_running:
             with self.profile("frame"):
 
-                self.dt = self.clock.tick(self.max_fps) / 1000
+                self.dt = self.clock.tick(self.max_fps) * 0.001
                 self.fps = self.clock.get_fps()
                 if self.fps == float("inf"): self.fps = 0 # Prevent OverflowError for rendering
                 self._accumulate("fps", self.fps)
@@ -307,8 +399,10 @@ void main() {
                     self.scene.update()
 
                 with self.profile("render"):
+                    self.context.screen.use()
+                    self.context.clear(0, 0, 0)
                     self.final_fbo.use()
-                    self.context.clear(255, 255, 255)
+                    self.context.clear(0, 0, 0)
                     self.display.fill((14, 12, 28))
 
                     self.scene.render_before()
@@ -338,8 +432,30 @@ void main() {
 
                     self.scene.render_post()
 
+                    fade = 1.0
+                    if self.in_transition:
+                        t = (time() - self.transition_start) / self.transition_duration
+
+                        if not self.transitioned and t >= 0.5:
+                            self.transitioned = True
+                            self.change_scene(self.transition_scene)
+
+                        if t >= 1.0:
+                            self.in_transition = False
+
+                        if t >= 0.5:
+                            fade = t * 2.0 - 1.0
+                        else:
+                            fade = (1.0 - t) * 2.0 - 1.0
+
                     self.context.screen.use()
                     self.final_fbo.color_attachments[0].use(0)
+                    self.post.shader["u_time"] = time() - self.start_time
+                    self.post.shader["u_fade"] = fade
+                    if hasattr(self.scene, "temperature"):
+                        self.post.shader["u_temp"] = self.scene.temperature / 100.0
+                    else:
+                        self.post.shader["u_temp"] = 25.0 / 100.0
                     self.post.vao.render()
 
                     pygame.display.flip()

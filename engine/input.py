@@ -59,6 +59,13 @@ class InputManager:
                 self.__mouse_states[_MOUSE_INVDICT[event.button]][1] = 0
                 self.__mouse_states[_MOUSE_INVDICT[event.button]][2] = 1
 
+            elif event.type == pygame.MOUSEWHEEL:
+                if event.y > 0:
+                    self.__mouse_states["wheelup"][1] = 1
+
+                elif event.y < 0:
+                    self.__mouse_states["wheeldown"][1] = 1
+
     def key_pressed(self, key: str) -> bool:
         """ Check if key is just pressed. """
         return self.__key_states[key.lower()][1]

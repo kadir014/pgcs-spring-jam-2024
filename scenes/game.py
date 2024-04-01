@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 
-from time import perf_counter, time
+from time import perf_counter
 from math import pi, atan2
 from random import uniform
 import array
@@ -14,6 +14,7 @@ from engine.draw import draw_shadow_text
 from .cursor import Cursor
 from .water_postprocess import WaterPostProcess
 from .textbox import DurkTextbox
+from .gauge import Gauge
 
 if TYPE_CHECKING:
     from engine import Engine
@@ -116,6 +117,11 @@ class RigidBody(Entity):
             self.scene.space.remove(self.body, self.shape)
             self.scene.particles.remove(self)
 
+        if self.scene.temperature > 80 and isinstance(self.shape, pymunk.Circle):
+            strength = (self.scene.temperature - 80) * 55
+            force = (uniform(-strength, strength), uniform(-strength, strength))
+            self.body.apply_force_at_local_point(force, (0, 0))
+
     def render_before(self):
         if isinstance(self.shape, pymunk.Poly):
             points = []
@@ -126,6 +132,9 @@ class RigidBody(Entity):
 
             pygame.draw.polygon(self.engine.display, (134, 179, 161), points, 0)
             pygame.draw.polygon(self.engine.display, (0, 0, 0), points, 2)
+
+        if self.scene.debug_drawing and isinstance(self.shape, pymunk.Circle):
+            pygame.draw.circle(self.engine.display, (0, 0, 0), self.position, self.shape.radius * 10, 1)
 
 
 class Game(Scene):
@@ -138,13 +147,17 @@ class Game(Scene):
         ).convert()
 
         self.textbox = DurkTextbox(self)
-
         self.cursor = Cursor(self)
+        self.gauge = Gauge(self)
+
+        self.temperature = 30.0
+        self.temp_max = 100.0
+        self.temp_min = 0.0
 
         self.space = pymunk.Space()
         self.space.iterations = 10
         self.space.sleep_time_threshold = 3.0
-        self.space.gravity = (0.0, 20.0)
+        self.space.gravity = (0.0, 50.0)
         self.sim_hz = 1.0 / 60.0
         self.step_time = 0.0
 
@@ -161,13 +174,21 @@ class Game(Scene):
         self.water_post = WaterPostProcess(self)
 
     def update(self):
-        self.cursor.update()
-
         if self.engine.input.key_pressed("escape"):
             self.engine.stop()
 
         if self.engine.input.key_pressed("f2"):
             self.debug_drawing = not self.debug_drawing
+
+        if self.engine.input.mouse_wheel_up() or self.engine.input.key_pressed("up"):
+            self.temperature += 10.0
+            if self.temperature > self.temp_max:
+                self.temperature = self.temp_max
+
+        if self.engine.input.mouse_wheel_down() or self.engine.input.key_pressed("down"):
+            self.temperature -= 10.0
+            if self.temperature < self.temp_min:
+                self.temperature = self.temp_min
 
         if self.engine.input.mouse_pressed("left") and self.engine.input.key_held("lshift"):
             self.drawing = True
@@ -182,7 +203,7 @@ class Game(Scene):
                 position = self.drawing_start / 10 + delta / 2.0
                 angle = atan2(delta.y, delta.x)
 
-                b = RigidBody.from_box(self, position, (delta.length(), 3.0), angle, friction=0.0, static=True)
+                b = RigidBody.from_box(self, position, (delta.length(), 3.0), angle, restitution=0.4, friction=0.0, static=True)
                 b.z_index = 1
 
         if self.engine.input.key_held("space"):
@@ -245,9 +266,10 @@ class Game(Scene):
 
     def render_post(self):
         # Update particles buffer with new particle positions
-        self.water_post.particle_vbo.clear()
-        self.water_post.particle_vbo.write(
-            array.array("f", [c for p in self.particles for c in [p.position.x, p.position.y]])
-        )
+        if not self.debug_drawing:
+            self.water_post.particle_vbo.clear()
+            self.water_post.particle_vbo.write(
+                array.array("f", [c for p in self.particles for c in [p.position.x, p.position.y]])
+            )
 
-        self.water_post.render()
+            self.water_post.render()

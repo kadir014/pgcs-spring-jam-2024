@@ -43,6 +43,11 @@ class AssetManager:
 
                     self.assets["animations"][animation][i] = surface
 
+        if "sounds" in self.assets:
+            for sound in self.assets["sounds"]:
+                snd = pygame.mixer.Sound(source_path("assets", self.assets["sounds"][sound]))
+                self.assets["sounds"][sound] = snd
+
     def get_font(self, name: str, size: int) -> pygame.Font:
         """ Get a loaded font. """
 

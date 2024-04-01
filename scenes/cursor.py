@@ -2,13 +2,16 @@ from time import time
 
 import pygame
 
-from engine import Scene
+from engine import Scene, Entity
 
 
-class Cursor:
+class Cursor(Entity):
+    """
+    Animated cursor handler.
+    """
+
     def __init__(self, scene: Scene):
-        self.scene = scene
-        self.engine = self.scene.engine
+        super().__init__(scene, pygame.Vector2())
 
         self.cursor_anim = (
             pygame.transform.smoothscale_by(self.engine.asset_manager.assets["animations"]["cursor"][0], 0.3),
