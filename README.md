@@ -23,7 +23,7 @@ $ python main.py
 
 
 # How to Play
-<kbd>Mouse Wheel</kbd> to adjust room temperature.
+<kbd>Mouse Wheel</kbd> or <kbd>Up/Down<kbd> to adjust room temperature.
 
 <kbd>Space</kbd> or <kbd>Enter</kbd> to skip dialog.
 
