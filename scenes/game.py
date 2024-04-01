@@ -1,15 +1,17 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from time import perf_counter
 from math import pi, atan2
 from random import uniform
 import array
+import json
 
 import pygame
 import pymunk
 
 from engine import Scene, Entity
 from engine.draw import draw_shadow_text
+from engine.path import source_path
 
 from .cursor import Cursor
 from .water_postprocess import WaterPostProcess
@@ -26,7 +28,8 @@ class RigidBody(Entity):
             scene: "Scene",
             static: bool,
             body: pymunk.Body,
-            shape: pymunk.Shape
+            shape: pymunk.Shape,
+            size: Optional[tuple[float, float]] = None
             ) -> None:
         super().__init__(
             scene,
@@ -37,6 +40,7 @@ class RigidBody(Entity):
         self.static = static
         self.body = body
         self.shape = shape
+        self.size = size
 
         if isinstance(self.shape, pymunk.Circle):
             self.scene.particles.append(self)
@@ -76,7 +80,7 @@ class RigidBody(Entity):
         shape.elasticity = restitution
 
         scene.space.add(body, shape)
-        return cls(scene, static, body, shape)
+        return cls(scene, static, body, shape, size=size)
     
     @classmethod
     def from_circle(
@@ -123,24 +127,26 @@ class RigidBody(Entity):
             self.body.apply_force_at_local_point(force, (0, 0))
 
     def render_before(self):
-        if isinstance(self.shape, pymunk.Poly):
-            points = []
-            angle = self.body.angle
-            for v in self.shape.get_vertices():
-                p = v.rotated(angle) + self.phypos
-                points.append((p.x * 10.0, (p.y) * 10.0))
+        if self.scene.debug_drawing:
+            if isinstance(self.shape, pymunk.Poly):
+                points = []
+                angle = self.body.angle
+                for v in self.shape.get_vertices():
+                    p = v.rotated(angle) + self.phypos
+                    points.append((p.x * 10.0, (p.y) * 10.0))
 
-            pygame.draw.polygon(self.engine.display, (134, 179, 161), points, 0)
-            pygame.draw.polygon(self.engine.display, (0, 0, 0), points, 2)
+                pygame.draw.polygon(self.engine.display, (134, 179, 161), points, 0)
+                pygame.draw.polygon(self.engine.display, (0, 0, 0), points, 2)
 
-        if self.scene.debug_drawing and isinstance(self.shape, pymunk.Circle):
-            pygame.draw.circle(self.engine.display, (0, 0, 0), self.position, self.shape.radius * 10, 1)
+            else:
+                pygame.draw.circle(self.engine.display, (0, 0, 0), self.position, self.shape.radius * 10, 1)
 
 
 class Game(Scene):
     def __init__(self, engine: "Engine"):
         super().__init__(engine)
 
+        self.window_ratio = self.engine.window_width / 1920
         self.bg = pygame.transform.smoothscale(
             self.engine.asset_manager.assets["images"]["background"],
             (self.engine.window_width, self.engine.window_height)
@@ -173,6 +179,29 @@ class Game(Scene):
 
         self.water_post = WaterPostProcess(self)
 
+        self.level_imgs = (
+            pygame.transform.smoothscale_by(self.engine.asset_manager.assets["images"]["level0"], self.window_ratio),
+        )
+        self.levels = (
+            json.load(open(source_path("assets", "levels", "level0.json"))),
+        )
+        self.current_level = 0
+
+        self.load_level(0)
+
+    def load_level(self, level: int) -> None:
+        for body in self.levels[level]["bodies"]:
+            b = RigidBody.from_box(
+                self,
+                pygame.Vector2(*body["position"]),
+                (body["width"], body["height"]),
+                body["angle"],
+                restitution=body["restitution"],
+                friction=body["friction"],
+                static=True
+            )
+            b.z_index = 1
+
     def update(self):
         if self.engine.input.key_pressed("f2"):
             self.debug_drawing = not self.debug_drawing
@@ -200,7 +229,7 @@ class Game(Scene):
                 position = self.drawing_start / 10 + delta / 2.0
                 angle = atan2(delta.y, delta.x)
 
-                b = RigidBody.from_box(self, position, (delta.length(), 3.0), angle, restitution=0.4, friction=0.0, static=True)
+                b = RigidBody.from_box(self, position, (delta.length(), 2.0), angle, restitution=0.2, friction=0.0, static=True)
                 b.z_index = 1
 
         if self.engine.input.key_held("space"):
@@ -224,12 +253,31 @@ class Game(Scene):
         if self.engine.input.key_pressed("r"):
             self.textbox.hide()
 
+        if self.engine.input.key_pressed("p"):
+            level_save = {"bodies": []}
+            for body in self.entities:
+                if isinstance(body, RigidBody) and isinstance(body.shape, pymunk.Poly):
+                    level_save["bodies"].append(
+                        {
+                            "position": [body.body.position.x, body.body.position.y],
+                            "angle": body.body.angle,
+                            "width": body.size[0],
+                            "height": body.size[1],
+                            "restitution": body.shape.elasticity,
+                            "friction": body.shape.friction
+                        }
+                    )
+
+            print(json.dumps(level_save))
+
+
         step_time_start = perf_counter()
         self.space.step(self.sim_hz)
         self.step_time = perf_counter() - step_time_start
 
     def render_before(self):
         self.engine.display.blit(self.bg, (0, 0))
+        self.engine.display.blit(self.level_imgs[0], (0, 0))
 
     def render_after(self):
         if self.drawing:
