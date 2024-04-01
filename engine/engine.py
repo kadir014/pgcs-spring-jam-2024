@@ -59,16 +59,16 @@ class Engine:
         self.monitor_width = display_info.current_w
         self.monitor_height = display_info.current_h
 
-        resolution = self.get_max_resolution(self.get_monitor_aspect_ratio())
-        self.window_width = resolution[0]
-        self.window_height = resolution[1]
+        #resolution = self.get_max_resolution(self.get_monitor_aspect_ratio())
+        self.window_width = 1280
+        self.window_height = 720
         self.__window_title = ""
         self.window_title = self.config["Engine"]["title"]
 
         self.hardware_scaling = self.config["Engine"]["hardware_scaling"]
 
         if "forced_width" in self.config["Engine"]: self.window_width = int(self.config["Engine"]["forced_width"])
-        if "forced_height" in self.config["Engine"]:self.window_height = int(self.config["Engine"]["forced_height"])
+        if "forced_height" in self.config["Engine"]: self.window_height = int(self.config["Engine"]["forced_height"])
         self.create_window()
         if _cfg_to_bool(self.config["Engine"]["fullscreen"].lower()): pygame.display.toggle_fullscreen()
 
