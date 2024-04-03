@@ -59,18 +59,34 @@ class Engine:
         self.monitor_width = display_info.current_w
         self.monitor_height = display_info.current_h
 
+        # monitor scaling screws with this!
         #resolution = self.get_max_resolution(self.get_monitor_aspect_ratio())
+        self.allowed_resolutions = (
+            (1280, 720),
+            (1366, 768),
+            (1920, 1080),
+            (2560, 1440),
+            (3840, 2160)
+        )
+
         self.window_width = 1280
         self.window_height = 720
         self.__window_title = ""
         self.window_title = self.config["Engine"]["title"]
 
-        self.hardware_scaling = self.config["Engine"]["hardware_scaling"]
+        self.hardware_scaling = _cfg_to_bool(self.config["Engine"]["hardware_scaling"])
+        self.scaled_width = 1280
+        self.scaled_height = 720
 
-        if "forced_width" in self.config["Engine"]: self.window_width = int(self.config["Engine"]["forced_width"])
-        if "forced_height" in self.config["Engine"]: self.window_height = int(self.config["Engine"]["forced_height"])
+        if self.hardware_scaling:
+            if "forced_width" in self.config["Engine"]: self.scaled_width = int(self.config["Engine"]["forced_width"])
+            if "forced_height" in self.config["Engine"]: self.scaled_height = int(self.config["Engine"]["forced_height"])
+        else:
+            if "forced_width" in self.config["Engine"]: self.window_width = int(self.config["Engine"]["forced_width"])
+            if "forced_height" in self.config["Engine"]: self.window_height = int(self.config["Engine"]["forced_height"])
+
         self.create_window()
-        if _cfg_to_bool(self.config["Engine"]["fullscreen"].lower()): pygame.display.toggle_fullscreen()
+        if _cfg_to_bool(self.config["Engine"]["fullscreen"]): pygame.display.toggle_fullscreen()
 
         self.context = moderngl.create_context()
         self.context.enable(moderngl.BLEND)
@@ -78,6 +94,10 @@ class Engine:
         self.display_tex = self.context.texture(self.display.get_size(), 4)
 
         self.final_fbo = self.context.framebuffer(
+            color_attachments=self.context.texture((self.window_width, self.window_height), 4)
+        )
+
+        self.scaled_fbo = self.context.framebuffer(
             color_attachments=self.context.texture((self.window_width, self.window_height), 4)
         )
 
@@ -226,6 +246,39 @@ void main() {
             """
         )
 
+        self.scaling = BasicScreenQuad(
+            self,
+            vertex_shader="""
+
+#version 330
+
+in vec2 in_position;
+in vec2 in_uv;
+out vec2 v_uv;
+
+void main() {
+    gl_Position = vec4(in_position, 0.0, 1.0);
+    v_uv = in_uv;
+}
+
+            """,
+            fragment_shader="""
+
+#version 330
+
+in vec2 v_uv;
+out vec4 f_color;
+
+uniform sampler2D s_texture;
+
+void main() {
+    vec2 uv = v_uv;
+    f_color = texture(s_texture, uv);
+}
+
+            """
+        )
+
         self.scenes = {}
         self.__current_scene = None
 
@@ -263,8 +316,13 @@ void main() {
         pygame.display.set_caption(self.__window_title)
 
     def create_window(self):
+        if self.hardware_scaling:
+            width, height = self.scaled_width, self.scaled_height
+        else:
+            width, height = self.window_width, self.window_height
+
         pygame.display.set_mode(
-           (self.window_width, self.window_height),
+           (width, height),
            pygame.OPENGL | pygame.DOUBLEBUF
         )
 
@@ -453,7 +511,8 @@ void main() {
                         else:
                             fade = (1.0 - t) * 2.0 - 1.0
 
-                    self.context.screen.use()
+                    if self.hardware_scaling: self.scaled_fbo.use()
+                    else: self.context.screen.use()
                     self.final_fbo.color_attachments[0].use(0)
                     self.post.shader["u_time"] = time() - self.start_time
                     self.post.shader["u_fade"] = fade
@@ -462,6 +521,11 @@ void main() {
                     else:
                         self.post.shader["u_temp"] = 25.0 / 100.0
                     self.post.vao.render()
+
+                    if self.hardware_scaling:
+                        self.context.screen.use()
+                        self.scaled_fbo.color_attachments[0].use(0)
+                        self.scaling.vao.render()
 
                     pygame.display.flip()
 

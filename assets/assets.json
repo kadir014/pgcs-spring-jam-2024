@@ -17,8 +17,19 @@
         "button_quit_close": "images/button_quit_close.png",
         "menu_hand": "images/menu_hand.png",
         "settings": "images/settings.png",
+        "button_saverestart": "images/button_saverestart.png",
+        "button_off": "images/button_off.png",
+        "button_on": "images/button_on.png",
+        "res_1280x720": "images/res_1280x720.png",
+        "res_1366x768": "images/res_1366x768.png",
+        "res_1600x900": "images/res_1600x900.png",
+        "res_1920x1080": "images/res_1920x1080.png",
+        "res_2560x1440": "images/res_2560x1440.png",
+        "icecube0": "images/icecube0.png",
+        "icecube1": "images/icecube1.png",
 
-        "level0": "images/level0.png"
+        "level0": "images/level0.png",
+        "level1": "images/level1.png"
     },
 
     "animations": {

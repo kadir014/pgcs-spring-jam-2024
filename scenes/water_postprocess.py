@@ -19,6 +19,7 @@ class WaterPostProcess:
     def __init__(self, scene: Scene):
         self.scene = scene
         self.engine = scene.engine
+        self.window_ratio = self.engine.window_width / 1280
 
         self.blur = BasicScreenQuad(
             self.engine,
@@ -133,7 +134,7 @@ void main() {
 """
         )
         self.particle_shader["u_resolution"] = (self.engine.window_width, self.engine.window_height)
-        size = self.scene.particle_size * 2.0 * 10.0
+        size = self.scene.particle_size * 2.0 * 10.0 * self.window_ratio
         self.particle_shader["u_size"] = (size, size)
 
         # 2 floats (4 bytes)

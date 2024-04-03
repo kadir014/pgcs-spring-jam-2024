@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Optional
 
 from time import perf_counter
-from math import pi, atan2
+from math import pi, atan2, degrees, radians
 from random import uniform
 import array
 import json
@@ -44,6 +44,8 @@ class RigidBody(Entity):
 
         if isinstance(self.shape, pymunk.Circle):
             self.scene.particles.append(self)
+
+        self.window_ratio = self.engine.window_width / 1280
 
     @classmethod
     def from_box(
@@ -113,13 +115,14 @@ class RigidBody(Entity):
     def update(self):
         phypos = self.body.position
         self.phypos = pygame.Vector2(phypos.x, phypos.y)
-        self.position = self.phypos * 10.0
+        self.position = self.phypos * 10.0 * self.window_ratio
         border = pygame.Rect(0, 0, self.engine.window_width, self.engine.window_height)
 
         if not border.collidepoint(self.position):
             self.kill()
             self.scene.space.remove(self.body, self.shape)
-            self.scene.particles.remove(self)
+            if isinstance(self.shape, pymunk.Circle): self.scene.particles.remove(self)
+            else: self.scene.icecubes.remove(self)
 
         if self.scene.temperature > 80 and isinstance(self.shape, pymunk.Circle):
             strength = (self.scene.temperature - 80) * 55
@@ -133,13 +136,19 @@ class RigidBody(Entity):
                 angle = self.body.angle
                 for v in self.shape.get_vertices():
                     p = v.rotated(angle) + self.phypos
-                    points.append((p.x * 10.0, (p.y) * 10.0))
+                    points.append((p.x * 10.0 * self.window_ratio, (p.y) * 10.0 * self.window_ratio))
 
                 pygame.draw.polygon(self.engine.display, (134, 179, 161), points, 0)
                 pygame.draw.polygon(self.engine.display, (0, 0, 0), points, 2)
 
             else:
-                pygame.draw.circle(self.engine.display, (0, 0, 0), self.position, self.shape.radius * 10, 1)
+                pygame.draw.circle(self.engine.display, (0, 0, 0), self.position, self.shape.radius * 10.0 * self.window_ratio, 1)
+        
+
+        else:
+            if self in self.scene.icecubes:
+                rotated = pygame.transform.rotate(self.scene.icecube1, degrees(-self.body.angle))
+                self.engine.display.blit(rotated, rotated.get_rect(center=self.position))
 
 
 class Game(Scene):
@@ -147,10 +156,15 @@ class Game(Scene):
         super().__init__(engine)
 
         self.window_ratio = self.engine.window_width / 1920
+        self.window_ratio2 = self.engine.window_width / 1280
         self.bg = pygame.transform.smoothscale(
             self.engine.asset_manager.assets["images"]["background"],
             (self.engine.window_width, self.engine.window_height)
         ).convert()
+
+        # today was a good day
+        self.icecube0 = pygame.transform.smoothscale_by(self.engine.asset_manager.assets["images"]["icecube0"], self.window_ratio)
+        self.icecube1 = pygame.transform.smoothscale_by(self.engine.asset_manager.assets["images"]["icecube1"], self.window_ratio)
 
         self.textbox = DurkTextbox(self)
         self.cursor = Cursor(self)
@@ -170,17 +184,20 @@ class Game(Scene):
         self.debug_drawing = False
 
         self.drawing = False
+        self.drawing_type = 0
         self.drawing_start = pygame.Vector2()
         self.drawing_end = pygame.Vector2()
 
         self.particle_size = 1.5 / 2.0
         self.max_particles = 5000
         self.particles = []
+        self.icecubes = []
 
         self.water_post = WaterPostProcess(self)
 
         self.level_imgs = (
             pygame.transform.smoothscale_by(self.engine.asset_manager.assets["images"]["level0"], self.window_ratio),
+            pygame.transform.smoothscale_by(self.engine.asset_manager.assets["images"]["level1"], self.window_ratio),
         )
         self.levels = (
             json.load(open(source_path("assets", "levels", "level0.json"))),
@@ -190,6 +207,8 @@ class Game(Scene):
         self.load_level(0)
 
     def load_level(self, level: int) -> None:
+        if "bodies" not in self.levels[level]: return
+
         for body in self.levels[level]["bodies"]:
             b = RigidBody.from_box(
                 self,
@@ -216,41 +235,66 @@ class Game(Scene):
             if self.temperature < self.temp_min:
                 self.temperature = self.temp_min
 
-        if self.engine.input.mouse_pressed("left") and self.engine.input.key_held("lshift"):
-            self.drawing = True
-            self.drawing_start = self.engine.input.mouse.copy()
+        if self.engine.input.key_held("lshift"):
+            if self.engine.input.mouse_pressed("left"):
+                self.drawing = True
+                self.drawing_type = 0
+                self.drawing_start = self.engine.input.mouse.copy()
 
-        if self.engine.input.mouse_released("left"):
+            elif self.engine.input.mouse_pressed("right"):
+                self.drawing = True
+                self.drawing_type = 1
+                self.drawing_start = self.engine.input.mouse.copy()
+
+        if self.engine.input.mouse_released("left") or self.engine.input.mouse_released("right"):
             if self.drawing:
                 self.drawing = False
                 self.drawing_end = self.engine.input.mouse.copy()
 
-                delta = (self.drawing_end - self.drawing_start) / 10.0
-                position = self.drawing_start / 10 + delta / 2.0
-                angle = atan2(delta.y, delta.x)
+                e = 0.7
+                u = 0.0
 
-                b = RigidBody.from_box(self, position, (delta.length(), 2.0), angle, restitution=0.2, friction=0.0, static=True)
-                b.z_index = 1
+                if self.drawing_type == 0:
+                    delta = (self.drawing_end - self.drawing_start) / 10.0
+                    position = self.drawing_start / 10 + delta / 2.0
+                    angle = atan2(delta.y, delta.x)
+
+                    b = RigidBody.from_box(self, position, (delta.length(), 2.0), angle, restitution=e, friction=u, static=True)
+                    b.z_index = 1
+
+                elif self.drawing_type == 1:
+                    width = (self.drawing_end.x - self.drawing_start.x) / 10
+                    height = (self.drawing_end.y - self.drawing_start.y) / 10
+                    center = (self.drawing_start + self.drawing_end) / 20
+
+                    b = RigidBody.from_box(self, center, (width, height), 0, restitution=e, friction=u, static=True)
+                    b.z_index = 1
 
         if self.engine.input.key_held("space"):
             v = self.engine.input.mouse_rel * 3.0
 
             for _ in range(3):
                 r = pygame.Vector2(uniform(-1.0, 1.0), uniform(-1.0, 1.0))
-                pos = self.engine.input.mouse / 10.0 + r
-                b = RigidBody.from_circle(self, pos, self.particle_size, restitution=0.5, friction=0.0, static=False)
+                pos = self.engine.input.mouse / 10.0 / self.window_ratio2 + r
+                b = RigidBody.from_circle(self, pos, self.particle_size, restitution=0.7, friction=0.0, static=False)
                 b.body.velocity = pymunk.Vec2d(v.x, v.y)
 
         if self.engine.input.key_pressed("q"):
-            self.textbox.say(0, "Greetings student! I'm Dr. Durk, a thermodynamics and molecular physics professor.")
+            center = self.engine.input.mouse / 10
+            width, height = 7.5, 7.5
+            b = RigidBody.from_box(self, center, (width, height), 0, restitution=0.5, friction=0.0, static=False)
+            self.icecubes.append(b)
 
-        if self.engine.input.key_pressed("w"):
-            self.textbox.say(1, "I will be the one to guide you trough the numerous scientific experiments of the day!")
+        # if self.engine.input.key_pressed("q"):
+        #     self.textbox.say(0, "Greetings student! I'm Dr. Durk, a thermodynamics and molecular physics professor.")
 
-        if self.engine.input.key_pressed("e"):
-            self.textbox.show()
+        # if self.engine.input.key_pressed("w"):
+        #     self.textbox.say(1, "I will be the one to guide you trough the numerous scientific experiments of the day!")
 
-        if self.engine.input.key_pressed("r"):
+        # if self.engine.input.key_pressed("e"):
+        #     self.textbox.show()
+
+        # if self.engine.input.key_pressed("r"):
             self.textbox.hide()
 
         if self.engine.input.key_pressed("p"):
@@ -281,7 +325,13 @@ class Game(Scene):
 
     def render_after(self):
         if self.drawing:
-            pygame.draw.line(self.engine.display, (255, 255, 255), self.drawing_start, self.engine.input.mouse)
+            if self.drawing_type == 0:
+                pygame.draw.line(self.engine.display, (255, 255, 255), self.drawing_start, self.engine.input.mouse)
+
+            elif self.drawing_type == 1:
+                width = self.engine.input.mouse.x - self.drawing_start.x
+                height = self.engine.input.mouse.y - self.drawing_start.y
+                pygame.draw.rect(self.engine.display, (255, 255, 255), (self.drawing_start, (width, height)), 1)
 
         if self.engine.stat_drawing == 2:
             font = self.engine.asset_manager.get_font("FiraCode-Bold", 12)

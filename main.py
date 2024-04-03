@@ -9,7 +9,25 @@ from scenes.menu import Menu
 
 
 if __name__ == "__main__":
-    engine = Engine(source_path("settings.cfg"))
+    cwd = os.getcwd()
+    settings_path = os.path.join(cwd, "settings.cfg")
+    if not os.path.exists(settings_path):
+        with open(settings_path, "w") as f:
+            f.write("""
+[Engine]
+title = Thermal Trials  -  PGCS Spring Jam 2024
+max_fps = 60
+forced_width = 1280
+forced_height = 720
+hardware_scaling = on
+fullscreen = off
+master_volume = 1.0
+
+[Graphics]
+quality = 3
+            """)
+
+    engine = Engine(settings_path)
 
     engine.add_scene(Game)
     engine.add_scene(Settings)

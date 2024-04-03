@@ -31,6 +31,9 @@ class InputManager:
         self.mouse = pygame.Vector2(*pygame.mouse.get_pos())
         self.mouse_rel = pygame.Vector2(*pygame.mouse.get_rel())
 
+        if self.engine.hardware_scaling:
+            self.mouse /= self.engine.scaled_width / 1280
+
         # Reset pressed and released states
         for k in self.__key_states:
             self.__key_states[k][1] = 0
