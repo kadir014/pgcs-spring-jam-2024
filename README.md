@@ -7,6 +7,7 @@ My entry for the Pygame Community Server Spring Jam 2024 with the theme "Tempera
 - Python 3.10+
 - Pygame-CE 2.4.0+
 - ModernGL 5.10.0+
+- Pymunk 6.6.0+
 
 Clone or download the repository
 ```
