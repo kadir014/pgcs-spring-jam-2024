@@ -38,6 +38,9 @@ class DurkTextbox(Entity):
         self.duration_quick = 0.0
         self.duration = self.duration_normal
 
+        self.delay = 0.0
+        self.delay_last = time()
+
         self.visible = False
         self.show_start = 0
         self.anim_y = 0
@@ -45,6 +48,12 @@ class DurkTextbox(Entity):
         self.anim_type = 0
 
     def update(self):
+        if self.delay > 0.0:
+            if time() - self.delay_last >= self.delay:
+                self.delay = 0.0
+            else:
+                return
+                
         if self.engine.input.key_pressed("space") or self.engine.input.key_pressed("return"):
             self.last = time()
 
@@ -94,13 +103,16 @@ class DurkTextbox(Entity):
                     if s.get_width() > (1790 - 655) * self.window_ratio:
                         self.displayed_text += "\n"
 
-    def say(self, image: int, text: str):
+    def say(self, image: int, text: str, delay: float = 0.0):
         self.image = image
         self.text = text
         self.displayed_text = ""
         self.cursor = 0
         self.last = time()
         self.done = False
+
+        self.delay = delay
+        self.delay_last = time()
 
     def show(self):
         self.visible = True

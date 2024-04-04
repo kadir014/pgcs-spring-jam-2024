@@ -53,7 +53,7 @@ class Engine:
         self.master_volume = float(self.config["Engine"]["master_volume"])
 
         self.input = InputManager(self)
-        pygame.key.set_repeat(400, 40)
+        #pygame.key.set_repeat(400, 40)
 
         display_info = pygame.display.Info()
         self.monitor_width = display_info.current_w

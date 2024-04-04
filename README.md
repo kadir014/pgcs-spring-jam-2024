@@ -24,13 +24,17 @@ $ python main.py
 
 
 # How to Play
-<kbd>Mouse Wheel</kbd> or <kbd>Up/Down<kbd> to adjust room temperature.
+<kbd>Mouse Wheel</kbd> or <kbd>Up/Down</kbd> to adjust room temperature.
 
 <kbd>Space</kbd> or <kbd>Enter</kbd> to skip dialog.
+
+<kbd>R</kbd> to restart level.
 
 <kbd>LShift</kbd> + <kbd>ESC</kbd> to quit the game.
 
 <kbd>F1</kbd> to toggle between debug UI menus.
+
+For funsies, you can spawn water with <kbd>Q</kbd>.
 
 
 # License
